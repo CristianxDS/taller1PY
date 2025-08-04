@@ -1,0 +1,114 @@
+import tkinter as tk
+from tkinter import filedialog, messagebox, ttk
+import pandas as pd
+import matplotlib.pyplot as plt
+import seaborn as sns
+
+class GeneradorGraficos:
+    def __init__(self, root):
+        self.root = root
+        self.root.title("Generador de Gráficos - Discapacidades Ecuador")
+        self.root.geometry("500x350")
+
+        self.label = tk.Label(root, text="Seleccione el archivo CSV del Registro de Discapacidades", font=("Arial", 12))
+        self.label.pack(pady=10)
+
+        self.boton_cargar = tk.Button(root, text="Cargar CSV", command=self.cargar_csv)
+        self.boton_cargar.pack(pady=5)
+
+        self.combo_graficos = ttk.Combobox(root, state="readonly")
+        self.combo_graficos["values"] = [
+            "Personas por Provincia (Barras)",
+            "Distribución por Género (Pastel)",
+            "Tipo de Discapacidad por Género (Barras Apiladas)",
+            "Grupo Etario vs Provincia (Mapa de Calor)",
+            "Grado de Discapacidad (Línea ordenada)"
+        ]
+        self.combo_graficos.pack(pady=10)
+        self.combo_graficos.set("Seleccione un gráfico")
+
+        self.boton_ver = tk.Button(root, text="Visualizar Gráfico", command=self.visualizar_grafico, state=tk.DISABLED)
+        self.boton_ver.pack(pady=10)
+
+        self.datos = None
+
+    def cargar_csv(self):
+        ruta = filedialog.askopenfilename(filetypes=[("CSV files", "*.csv")])
+        if ruta:
+            try:
+                self.datos = pd.read_csv(ruta, encoding='latin1', sep=';')
+                self.datos.columns = self.datos.columns.str.strip()
+                self.label.config(text="CSV cargado exitosamente ✅")
+                print("Columnas:", self.datos.columns.tolist())
+                self.boton_ver.config(state=tk.NORMAL)
+            except Exception as e:
+                messagebox.showerror("Error", f"No se pudo leer el CSV:\n{e}")
+
+    def visualizar_grafico(self):
+        if self.datos is None:
+            return
+
+        opcion = self.combo_graficos.get()
+
+        try:
+            if opcion == "Personas por Provincia (Barras)":
+                plt.figure(figsize=(10, 5))
+                self.datos['Provincia'].value_counts().head(10).plot(kind='bar')
+                plt.title("Personas con discapacidad por provincia")
+                plt.xlabel("Provincia")
+                plt.ylabel("Cantidad")
+                plt.xticks(rotation=45)
+                plt.tight_layout()
+                plt.show()
+
+            elif opcion == "Distribución por Género (Pastel)":
+                plt.figure()
+                self.datos['Género'].value_counts().plot(kind='pie', autopct='%1.1f%%')
+                plt.title("Distribución por Género")
+                plt.ylabel("")
+                plt.tight_layout()
+                plt.show()
+
+            elif opcion == "Tipo de Discapacidad por Género (Barras Apiladas)":
+                tabla_apilada = self.datos.groupby(['Género', 'Tipo de Discapacidad']).size().unstack()
+                tabla_apilada.plot(kind='bar', stacked=True)
+                plt.title("Tipo de Discapacidad por Género")
+                plt.ylabel("Cantidad")
+                plt.xlabel("Género")
+                plt.xticks(rotation=0)
+                plt.tight_layout()
+                plt.show()
+
+            elif opcion == "Grupo Etario vs Provincia (Mapa de Calor)":
+                tabla_calor = pd.crosstab(self.datos['Grupo Etareo'], self.datos['Provincia'])
+                plt.figure(figsize=(12, 6))
+                sns.heatmap(tabla_calor, annot=True, fmt='d', cmap='YlGnBu')
+                plt.title("Distribución por Grupo Etario y Provincia")
+                plt.ylabel("Grupo Etario")
+                plt.xlabel("Provincia")
+                plt.tight_layout()
+                plt.show()
+
+            elif opcion == "Grado de Discapacidad (Línea ordenada)":
+                orden = ['De 30% a 49%', 'De 50% a 74%', 'De 75% a 84%', 'De 85% a 100%']
+                conteo = self.datos['Grado de Discapacidad'].value_counts().reindex(orden)
+                conteo.plot(kind='line', marker='o', color='red')
+                plt.title("Cantidad según Grado de Discapacidad")
+                plt.xlabel("Grado")
+                plt.ylabel("Cantidad")
+                plt.grid(True)
+                plt.tight_layout()
+                plt.show()
+
+            else:
+                messagebox.showinfo("Información", "Seleccione un gráfico válido.")
+
+        except Exception as e:
+            messagebox.showerror("Error", f"No se pudo generar el gráfico:\n{e}")
+
+
+# Ejecutar app
+if __name__ == "__main__":
+    root = tk.Tk()
+    app = GeneradorGraficos(root)
+    root.mainloop()
